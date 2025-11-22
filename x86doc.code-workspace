@@ -2,8 +2,51 @@
 	"folders": [
 		{
 			"path": ".",
-			"name": "💾 x86 Documentation"
+			"name": "💾 x86doc"
+		},
+		{
+			"path": "Java/SignatureGenerator",
+			"name": "☕ Java Generator"
+		},
+		{
+			"path": "Python",
+			"name": "🐍 Python Extractors"
+		},
+		{
+			"path": "html",
+			"name": "📄 HTML Documentation"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.exclude": {
+			"**/.git": true,
+			"**/target": true,
+			"**/__pycache__": true,
+			"**/*.pyc": true
+		},
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"java.compile.nullAnalysis.mode": "automatic",
+		"[python]": {
+			"editor.defaultFormatter": "ms-python.black-formatter",
+			"editor.formatOnSave": true
+		},
+		"[java]": {
+			"editor.defaultFormatter": "redhat.java",
+			"editor.formatOnSave": true
+		},
+		"explorer.fileNesting.enabled": true,
+		"explorer.fileNesting.patterns": {
+			"pom.xml": ".mvn, mvnw, mvnw.cmd",
+			"*.py": "${capture}.py.orig",
+			"README.md": "LICENSE, .gitignore"
+		}
+	},
+	"extensions": {
+		"recommendations": [
+			"vscjava.vscode-java-pack",
+			"ms-python.python",
+			"ms-python.black-formatter",
+			"redhat.java"
+		]
+	}
 }
