@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -53,7 +53,7 @@ public class Main {
 			} else {
 				final String ref = fileEntry.getName();
 				try {
-					final String fileContent = new String(Files.readAllBytes(Paths.get(fileEntry.getAbsolutePath()))).replace("\r", " ").replace("\n", " ");
+					final String fileContent = new String(Files.readAllBytes(Path.of(fileEntry.getAbsolutePath()))).replace("\r", " ").replace("\n", " ");
 					final Set<String> instructions = this.retieveInstructions(stripExtension(fileEntry.getName()), fileContent);
 
 					final SortedSet<String> archs = new TreeSet<String>();
@@ -229,7 +229,7 @@ public class Main {
 			return new ArrayList<Signature>();
 		} else {
 			final List<Signature> list = new ArrayList<Signature>(nElements);
-			final List<String> headers = rawData.get(0);
+			final List<String> headers = rawData.getFirst();
 			if (headers.size() < 1) {
 				log.warn("transform: got empty header for mnemonic "+mnemonics.iterator().next());
 			} else {
@@ -244,43 +244,43 @@ public class Main {
 					List<String> element = rawData.get(i);
 					List<String> sign = null;
 					
-					if (headers.get(0).equalsIgnoreCase("Opcode") && (headers.size() == 6)) {
+					if (headers.getFirst().equalsIgnoreCase("Opcode") && (headers.size() == 6)) {
 						sign = this.splitInstruction(element.get(1), mnemonics);
 						arch = "";
 						description = element.get(5);
 					} else if ((headers.size() == 5) && 
-						(headers.get(0).equalsIgnoreCase("Opcode/Instruction") || headers.get(0).equalsIgnoreCase("Opcode Instruction"))) {
-						sign = this.splitInstruction(element.get(0), mnemonics);
+						(headers.getFirst().equalsIgnoreCase("Opcode/Instruction") || headers.getFirst().equalsIgnoreCase("Opcode Instruction"))) {
+						sign = this.splitInstruction(element.getFirst(), mnemonics);
 						arch = element.get(3);
 						description = element.get(4);
 					} else if ((headers.size() == 4) && 
-						headers.get(0).equalsIgnoreCase("Opcode/Instruction")) {
-						sign = this.splitInstruction(element.get(0), mnemonics);
+						headers.getFirst().equalsIgnoreCase("Opcode/Instruction")) {
+						sign = this.splitInstruction(element.getFirst(), mnemonics);
 						arch = element.get(2);
 						description = element.get(3);
 					} else if ((headers.size() == 5) &&
-						headers.get(0).equalsIgnoreCase("Opcode")) {
+						headers.getFirst().equalsIgnoreCase("Opcode")) {
 						sign = this.splitInstruction(element.get(1), mnemonics);
 						arch = element.get(3);
 						description = element.get(4);
 					} else if ((headers.size() == 5) && 
-						headers.get(0).equalsIgnoreCase("Description") && 
+						headers.getFirst().equalsIgnoreCase("Description") && 
 						headers.get(4).equalsIgnoreCase("CPUID Feature Flag")) {
 						sign = this.splitInstruction(element.get(1), mnemonics);
 						arch = element.get(4);
-						description = element.get(0);
+						description = element.getFirst();
 					} else if ((headers.size() == 5) && 
-						headers.get(0).equalsIgnoreCase("Description") && 
+						headers.getFirst().equalsIgnoreCase("Description") && 
 						headers.get(2).equalsIgnoreCase("Opcode/Instruction")) {
 						sign = this.splitInstruction(element.get(2), mnemonics);
 						arch = element.get(1);
-						description = element.get(0);
+						description = element.getFirst();
 					} else if ((headers.size() == 5) && 
-						headers.get(0).equalsIgnoreCase("CPUID Feature Flag") && 
+						headers.getFirst().equalsIgnoreCase("CPUID Feature Flag") && 
 						headers.get(1).equalsIgnoreCase("Description") &&
 						headers.get(2).equalsIgnoreCase("Opcode/Instruction")) {
 						sign = splitInstruction(element.get(2), mnemonics);
-						arch = element.get(0);
+						arch = element.getFirst();
 						description = element.get(1);
 					} else if (mnemonics.iterator().next().equals("XORPD") ||
 							mnemonics.iterator().next().equals("UNPCKLPS") || 
@@ -289,7 +289,7 @@ public class Main {
 							mnemonics.iterator().next().equals("UNPCKHPD") ||
 							mnemonics.iterator().next().equals("PTWRITE")) {
 						if (element.size() > 4) {
-							sign = splitInstruction(element.get(0), mnemonics);
+							sign = splitInstruction(element.getFirst(), mnemonics);
 							arch = element.get(3);
 							description = element.get(4);
 						}
@@ -297,7 +297,7 @@ public class Main {
 						log.warn("transform: funky header for mnemonic "+mnemonics.iterator().next()+";headers.size()="+headers.size());
 					}
 					if (sign != null) {
-						mnemonic = sign.get(0);
+						mnemonic = sign.getFirst();
 						operandsDoc = sign.get(1);
 						if (mnemonic.equals("")) {
 							// do nothing
@@ -475,11 +475,11 @@ public class Main {
 		}
 		try {
 			final String title = fileContent.substring(startPos+beginKeyword.length(), endPos);
-			final int posHyphen = title.indexOf("â€”");
+			final int posHyphen = title.indexOf("\u2014");
 			if (posHyphen != -1) {
 				return title.substring(posHyphen+1).trim();
 			}
-			final int posHyphen2 = title.indexOf("—");
+			final int posHyphen2 = title.indexOf("\u2014");
 			if (posHyphen2 != -1) {
 				return title.substring(posHyphen2+1).trim();
 			}
@@ -592,3 +592,4 @@ public class Main {
 		return str.replaceAll("val-ues", "values").replaceAll("writ-ten", "written").replaceAll(",", ", ").replaceAll(" // ", "//");
 	}
 }
+
