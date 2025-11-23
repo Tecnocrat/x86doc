@@ -5,7 +5,19 @@ from pdfminer.layout import LTTextLineHorizontal, LTRect, LTCurve, LTContainer
 import functools
 import pdftable
 from htmltext import HtmlText, OpenTag, CloseTag
+import sys
+import math
 import re
+try:
+    import ujson as json
+except ImportError:
+    import json
+try:
+    # Python 2.6-2.7
+    from HTMLParser import HTMLParser
+except Exception:
+    # Python 3
+    from html.parser import HTMLParser
 
 
 def escape_html(a):
@@ -47,7 +59,6 @@ class SingleCellTable(pdftable.TableBase):
         return self.rect
 
     def get_at(self, x, y):
-        # assert x == 0 and y == 0
         return self.__data
 
     def get_at_pixel(self, x, y):
@@ -73,7 +84,6 @@ class Figure(object):
 
 
 def center_aligned_table(source):
-    # assert source.rows() == 1 and source.columns() == 1
     bounds = source.bounds()
     contents = source.get_at(0, 0)[:]
     contents.sort(key=functools.cmp_to_key(sort_topdown_ltr))
@@ -117,7 +127,6 @@ def center_aligned_table(source):
 
 
 def left_aligned_table(source):
-    # assert source.rows() == 1 and source.columns() == 1
     bounds = source.bounds()
     contents = source.get_at(0, 0)[:]
     contents.sort(key=functools.cmp_to_key(sort_topdown_ltr))
@@ -153,7 +162,7 @@ def left_aligned_table(source):
             print("No matching column!")
             print(columns)
             print(contents)
-            # raise Exception("No matching column!")
+
         row[col_index] = [item]
 
     if any((len(c) == 0 for c in row)):
@@ -179,9 +188,7 @@ class CharCollection(object):
         while len(self.chars) > 0 and len(self.chars[-1].get_text().strip()) == 0:
             self.chars.pop()
 
-        # actual, complete bounds (modified by caller)
         self.rect = rect
-        # bounds excluding abnormally-placed characters (exponents, symbols)
         self.approx_rect = self.__approximative_bounds()
 
     def bounds(self):
@@ -247,7 +254,6 @@ class FontStyle(object):
             return ("sup", "sub")
 
         print("error:x86manual:FontStyle")
-        # assert False
 
 
 fpu_flags_format__ = re.compile(r"^C[0-9]")
@@ -293,8 +299,6 @@ class x86ManParser(object):
                 and firstLine.font_size() >= 12
             ):
                 if len(self.ltRects) > 0 or len(self.textLines) > 0:
-                    # convenience: if we're debugging, let an exception crash
-                    # the script
                     if __debug__:
                         self.flush()
                         self.success += 1
@@ -314,7 +318,6 @@ class x86ManParser(object):
         self.textLines += self.thisPageTextLines
 
     def process_text_line(self, line):
-        # ignore header and footer
         if line.bbox[1] < 740 and line.bbox[1] > 50:
             coll = CharCollection(line, self.__fix_bbox(line.bbox))
             coll.approx_rect = self.__fix_rect(coll.approx_rect)
@@ -387,14 +390,11 @@ class x86ManParser(object):
         return merged
 
     def __output_file(self, displayable):
-        title_parts = [
-            p.strip() for p in re.split(r"\s*[-—]\s*", str(displayable[0]), 1)
-        ]
+        title_parts = [p.strip() for p in re.split(r"\s*[-—]\s*", str(displayable[0]), 1)]
         if len(title_parts) != 2:
             print("Can't decode title")
             print(displayable[0].font_size(), str(displayable[0:5]))
             print(title_parts)
-            # raise Exception("Can't decode title")
         else:
             title = title_parts[0].replace("/", "_")
 
@@ -407,7 +407,6 @@ class x86ManParser(object):
 
     def __output_page(self, displayable):
         title = str(displayable[0])
-        result = [""]
         text = HtmlText()
         text.append(OpenTag("html"))
         text.append(OpenTag("head"))
@@ -447,9 +446,7 @@ class x86ManParser(object):
                 level = int(result.tokens[0].tag[1]) - 1
                 self.__title_stack = self.__title_stack[0:level]
                 self.__title_stack.append(
-                    "".join((c for c in result.tokens[1:-1] if isinstance(c, str)))
-                    .strip()
-                    .lower()
+                    "".join((c for c in result.tokens[1:-1] if isinstance(c, str))).strip().lower()
                 )
             return result
 
@@ -467,7 +464,6 @@ class x86ManParser(object):
             return result
 
         if isinstance(element, Figure):
-
             def flatten(t):
                 everything = t.get_everything()
                 result = everything[:]
@@ -483,8 +479,7 @@ class x86ManParser(object):
                 attribs = {
                     "width": bounds.width() * 1.5,
                     "height": bounds.height() * 1.5,
-                    "viewBox": "%f %f %f %f"
-                    % (bounds.x1(), bounds.y1(), bounds.width(), bounds.height()),
+                    "viewBox": "%f %f %f %f" % (bounds.x1(), bounds.y1(), bounds.width(), bounds.height()),
                 }
                 svg.append(OpenTag("svg", attributes=attribs))
                 for item in flat:
@@ -492,20 +487,16 @@ class x86ManParser(object):
                 svg.autoclose()
             return svg
 
-            # handled above - this block was duplicated and removed
-
         if isinstance(element, pdftable.TableBase):
             result = HtmlText()
             print_index = -1
             attributes = {}
             if element.rows() == 1 and element.columns() == 1:
                 if len(self.__title_stack) == 1:
-                    # instruction table
                     element = left_aligned_table(element)
                 else:
                     heading = self.__title_stack[-1]
                     if heading.startswith("instruction operand encoding"):
-                        # operands encoding
                         element = center_aligned_table(element)
                     elif isinstance(element, SingleCellTable):
                         element = left_aligned_table(element)
@@ -554,7 +545,6 @@ class x86ManParser(object):
             return result
 
         print("error: x86manual.py:__output_html")
-        # assert False
         return HtmlText()
 
     def __output_svg(self, element):
@@ -562,7 +552,6 @@ class x86ManParser(object):
         attributes = {"x": self_bounds.x1(), "y": self_bounds.y1()}
         result = HtmlText()
         if isinstance(element, CharCollection):
-            # for now, let's assume that any figure text is plain text
             attributes["y"] += self_bounds.height() * 0.8
             attributes["style"] = "font-size:%fpt" % element.font_size()
             attributes["textLength"] = self_bounds.width()
@@ -583,7 +572,6 @@ class x86ManParser(object):
             return result
 
         if isinstance(element, pdftable.Curve):
-
             def pt(p):
                 return "%f,%f" % (p[0], p[1])
 
@@ -595,8 +583,6 @@ class x86ManParser(object):
             return result
 
         print("error: x86manual.py:__output_svg")
-        # print element.__class__.__name__
-        # assert False
         return result
 
     def __output_text(self, element):
@@ -635,31 +621,31 @@ class x86ManParser(object):
         for char in element.chars:
             string = char.get_text()
             open_tags = []
-            close = []
+            close_tags = []
             if hasattr(char, "fontname") and hasattr(char, "matrix"):
                 this_style = FontStyle(char)
                 this_italic = this_style.font_is("Italic")
                 if this_italic != style.font_is("Italic"):
                     if this_italic:
-                        open.append(OpenTag("em"))
+                        open_tags.append(OpenTag("em"))
                     else:
-                        close.append(CloseTag("em"))
+                        close_tags.append(CloseTag("em"))
 
                 this_bold = this_style.font_is("Bold")
                 if this_bold != style.font_is("Bold"):
                     if this_bold:
-                        open.append(OpenTag("strong"))
+                        open_tags.append(OpenTag("strong"))
                     else:
-                        close.append(CloseTag("strong"))
+                        close_tags.append(CloseTag("strong"))
 
                 baseline = this_style.compare_baseline(style)
                 if baseline is not None:
                     if this_style.size < style0.size:
-                        open.append(OpenTag(baseline[0]))
+                        open_tags.append(OpenTag(baseline[0]))
                     else:
-                        close.append(CloseTag(baseline[1]))
+                        close_tags.append(CloseTag(baseline[1]))
 
-                for tag in reversed(close):
+                for tag in reversed(close_tags):
                     text.append(tag)
                 for tag in open_tags:
                     text.append(tag)
@@ -707,11 +693,7 @@ class x86ManParser(object):
             for i in range(0, len(textLines)):
                 line = textLines[i]
                 if bounds.contains(line.bounds()):
-                    # Some pages have their "NOTES" section embedded inside the
-                    # table rectangle. What were you thinking, Intel?
-                    if line.font_name() == "NeoSansIntelMedium" and str(
-                        line
-                    ).lower().startswith("notes"):
+                    if line.font_name() == "NeoSansIntelMedium" and str(line).lower().startswith("notes"):
                         orphans += textLines[i:]
                         break
                     table.get_at_pixel(line.rect.xmid(), line.rect.ymid()).append(line)
@@ -772,9 +754,7 @@ class x86ManParser(object):
                 while j < len(all_tables):
                     bigger = all_tables[j]
                     if bigger.bounds().contains(smaller_bounds):
-                        bigger.get_at_pixel(
-                            smaller_bounds.xmid(), smaller_bounds.ymid()
-                        ).append(smaller)
+                        bigger.get_at_pixel(smaller_bounds.xmid(), smaller_bounds.ymid()).append(smaller)
                         figures.add(bigger)
                         figures.add(smaller)
                         sublevel_figures.add(smaller)
@@ -796,6 +776,7 @@ class x86ManParser(object):
                     orphanCurves.append(curve)
             curves = orphanCurves
             orphanCurves = []
+
         i = 0
         while i < len(top_tables):
             count = top_tables[i].item_count()
@@ -834,3 +815,4 @@ class x86ManParser(object):
         displayable = self.__merge_text(orphans) + top_tables + top_figures
         displayable.sort(key=functools.cmp_to_key(sort_topdown_ltr))
         return displayable
+

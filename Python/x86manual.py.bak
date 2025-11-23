@@ -5,6 +5,25 @@ from pdfminer.layout import LTTextLineHorizontal, LTRect, LTCurve, LTContainer
 import functools
 import pdftable
 from htmltext import HtmlText, OpenTag, CloseTag
+import sys
+import math
+import re
+
+try:
+    import ujson as json
+except ImportError:
+    import json
+try:
+    # Python 2.6-2.7
+    from HTMLParser import HTMLParser
+except Exception:
+    # Python 3
+    from html.parser import HTMLParser
+import functools
+import pdftable
+from htmltext import HtmlText, OpenTag, CloseTag
+import sys
+import math
 import re
 
 
@@ -209,6 +228,7 @@ class CharCollection(object):
             self.chars.pop()
 
     def append_char(self, c):
+        aChar = self.chars[0]
         self.chars.append(FakeChar(c))
 
     def font_name(self):
@@ -273,8 +293,8 @@ class x86ManParser(object):
     def flush(self):
         try:
             displayable = self.__prepare_display()
-        except Exception as e:
-            print("Failed to prepare: %s" % str(e))
+        except:
+            print("Failed to prepare for %s" % str(self.textLines[0]))
             raise
 
         self.__output_file(displayable)
@@ -302,8 +322,8 @@ class x86ManParser(object):
                         try:
                             self.flush()
                             self.success += 1
-                        except Exception as e:
-                            print("*** couldn't flush to disk: %s" % str(e))
+                        except:
+                            print("*** couldn't flush to disk")
                             self.fail += 1
 
                     self.ltRects = []
@@ -476,8 +496,21 @@ class x86ManParser(object):
                         everything += flatten(i)
                 return everything
 
-            flat = flatten(element.data)
-            svg = HtmlText()
+                flat = flatten(element.data)
+                if len([f for f in flat if isinstance(f, CharCollection)]) > 0:
+                    bounds = element.bounds()
+                    attribs = {
+                        "width": bounds.width() * 1.5,
+                        "height": bounds.height() * 1.5,
+                        "viewBox": "%f %f %f %f"
+                        % (bounds.x1(), bounds.y1(), bounds.width(), bounds.height()),
+                    }
+                    svg.append(OpenTag("svg", attributes=attribs))
+                    for item in flat:
+                        svg.append(self.__output_svg(item))
+                    svg.autoclose()
+                return svg
+
             if len([f for f in flat if isinstance(f, CharCollection)]) > 0:
                 bounds = element.bounds()
                 attribs = {
@@ -491,8 +524,6 @@ class x86ManParser(object):
                     svg.append(self.__output_svg(item))
                 svg.autoclose()
             return svg
-
-            # handled above - this block was duplicated and removed
 
         if isinstance(element, pdftable.TableBase):
             result = HtmlText()
@@ -523,7 +554,7 @@ class x86ManParser(object):
                     cell_tag = "td"
                     contents = HtmlText()
                     children = self.__merge_text(element.get_at(col, row))
-                    if children is not None:
+                    if children != None:
                         if len(children) == 1:
                             contents = self.__output_text(children[0])
                             if contents.tokens[0].tag != "p":
@@ -606,27 +637,27 @@ class x86ManParser(object):
         style = FontStyle(element.chars[0])
         style0 = style
         text = HtmlText()
-        open_tag = OpenTag("p")
+        open = OpenTag("p")
         strong = False
         if element.font_name() == "NeoSansIntelMedium":
             if element.font_size() >= 12:
-                open_tag.tag = "h1"
+                open.tag = "h1"
             elif element.font_size() >= 9.9:
                 if element.bounds().x1() < 50:
-                    open_tag.tag = "h2"
+                    open.tag = "h2"
                 else:
-                    open_tag.tag = "h3"
+                    open.tag = "h3"
             else:
                 strong = True
         elif (
             element.font_name() == "NeoSansIntel"
             and self.__title_stack[-1] == "operation"
         ):
-            open_tag = OpenTag("pre", True)
+            open = OpenTag("pre", True)
             indent = int((element.bounds().x1() - 45) / 3.375)
             element.chars = [FakeChar(" ")] * indent + element.chars
 
-        text.append(open_tag)
+        text.append(open)
         if strong or style.font_is("Bold"):
             text.append(OpenTag("strong"))
         if style.font_is("Italic"):
@@ -634,7 +665,7 @@ class x86ManParser(object):
 
         for char in element.chars:
             string = char.get_text()
-            open_tags = []
+            open = []
             close = []
             if hasattr(char, "fontname") and hasattr(char, "matrix"):
                 this_style = FontStyle(char)
@@ -653,7 +684,7 @@ class x86ManParser(object):
                         close.append(CloseTag("strong"))
 
                 baseline = this_style.compare_baseline(style)
-                if baseline is not None:
+                if baseline != None:
                     if this_style.size < style0.size:
                         open.append(OpenTag(baseline[0]))
                     else:
@@ -661,7 +692,7 @@ class x86ManParser(object):
 
                 for tag in reversed(close):
                     text.append(tag)
-                for tag in open_tags:
+                for tag in open:
                     text.append(tag)
                 style = this_style
 
@@ -689,7 +720,7 @@ class x86ManParser(object):
                 try:
                     frames.append(pdftable.Table(cluster))
                     continue
-                except Exception:
+                except:
                     pass
             orphans += cluster
 

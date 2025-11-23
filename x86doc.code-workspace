@@ -38,7 +38,8 @@
 		"explorer.fileNesting.patterns": {
 			"pom.xml": ".mvn, mvnw, mvnw.cmd",
 			"*.py": "${capture}.py.orig"
-		}
+		},
+		"powershell.cwd": "💾 x86doc"
 	},
 	"extensions": {
 		"recommendations": [
