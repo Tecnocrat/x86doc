@@ -37,8 +37,7 @@
 		"explorer.fileNesting.enabled": true,
 		"explorer.fileNesting.patterns": {
 			"pom.xml": ".mvn, mvnw, mvnw.cmd",
-			"*.py": "${capture}.py.orig",
-			"README.md": "LICENSE, .gitignore"
+			"*.py": "${capture}.py.orig"
 		}
 	},
 	"extensions": {
